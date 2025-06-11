@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generator Sederhana</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        #app-container {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #1877f2;
+            margin-bottom: 24px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        textarea, select, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #dddfe2;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .face-control {
+            border: 2px dashed #ccd0d5;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        #face-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 50%;
+            display: none;
+            object-fit: cover;
+            border: 2px solid #dddfe2;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            background-color: #1877f2;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #166fe5;
+        }
+        button:disabled {
+            background-color: #a0bdf5;
+            cursor: not-allowed;
+        }
+        #result-container {
+            margin-top: 24px;
+            text-align: center;
+            display: none;
+        }
+        #result-image {
+            max-width: 100%;
+            border-radius: 8px;
+            border: 1px solid #dddfe2;
+        }
+        #download-btn {
+            background-color: #42b72a;
+            margin-top: 16px;
+        }
+        #download-btn:hover {
+            background-color: #36a420;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #1877f2;
+            animation: spin 1s ease infinite;
+            margin: 20px auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .api-warning {
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <h1>AI Image Generator</h1>
+        
+        <div class="api-warning">
+            <strong>Peringatan Keamanan:</strong> Jangan pernah mempublikasikan API Key Anda di kode frontend. Kode ini menggunakan API Key palsu untuk demonstrasi. Ganti dengan panggilan ke backend Anda sendiri.
+        </div>
+
+        <div class="form-group">
+            <label for="prompt-input">Deskripsi Gambar (Prompt)</label>
+            <textarea id="prompt-input" placeholder="Contoh: seekor astronot kucing sedang menunggangi kuda di luar angkasa, gaya sinematik"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>ControlNet (Simulasi Wajah Asli)</label>
+            <div class="face-control">
+                <input type="file" id="face-input" accept="image/*">
+                <img id="face-preview" alt="Pratinjau Wajah"/>
+                <small>Unggah gambar wajah untuk referensi (opsional)</small>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="ratio-select">Rasio Aspek</label>
+            <select id="ratio-select">
+                <option value="1:1">1:1 (Persegi)</option>
+                <option value="16:9">16:9 (Lanskap)</option>
+                <option value="9:16">9:16 (Potret)</option>
+            </select>
+        </div>
+
+        <button id="generate-btn">Buat Gambar</button>
+
+        <div class="spinner" id="loading-spinner"></div>
+
+        <div id="result-container">
+            <h2>Hasil Gambar</h2>
+            <img id="result-image" alt="Gambar yang dihasilkan AI">
+            <button id="download-btn">Unduh Gambar</button>
+        </div>
+    </div>
+
+    <script>
+        // === ELEMEN DOM ===
+        const generateBtn = document.getElementById('generate-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const promptInput = document.getElementById('prompt-input');
+        const ratioSelect = document.getElementById('ratio-select');
+        const faceInput = document.getElementById('face-input');
+        const facePreview = document.getElementById('face-preview');
+        const resultContainer = document.getElementById('result-container');
+        const resultImage = document.getElementById('result-image');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // === PENGATURAN API ===
+        // !!! PERINGATAN KERAS !!!
+        // JANGAN GUNAKAN API KEY ANDA DI SINI UNTUK PRODUKSI.
+        // API Key harus disimpan di server (backend) yang aman.
+        // Kode ini hanya untuk demonstrasi UI.
+        const API_KEY = "INI-HANYA-CONTOH-JANGAN-UNGGAH-KEY-ASLI-ANDA";
+
+        // === EVENT LISTENERS ===
+        generateBtn.addEventListener('click', handleGenerateClick);
+        downloadBtn.addEventListener('click', downloadImage);
+        faceInput.addEventListener('change', previewFaceImage);
+
+        // === FUNGSI-FUNGSI ===
+
+        function previewFaceImage() {
+            const file = faceInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    facePreview.src = e.target.result;
+                    facePreview.style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                facePreview.style.display = 'none';
+            }
+        }
+        
+        async function handleGenerateClick() {
+            const prompt = promptInput.value;
+            if (!prompt) {
+                alert('Silakan masukkan deskripsi gambar terlebih dahulu.');
+                return;
+            }
+
+            // UI state: Loading
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Membuat...';
+            loadingSpinner.style.display = 'block';
+            resultContainer.style.display = 'none';
+
+            // Membangun prompt akhir
+            let finalPrompt = prompt;
+            if (faceInput.files[0]) {
+                finalPrompt += ", dengan wajah yang mirip seperti pada gambar referensi.";
+            }
+
+            const ratio = ratioSelect.value;
+            console.log("Membuat gambar dengan detail:");
+            console.log("Prompt:", finalPrompt);
+            console.log("Rasio:", ratio);
+            
+            try {
+                // =================================================================
+                // === PANGGILAN API PALSU (MOCKUP) UNTUK DEMONSTRASI ===
+                // Ganti bagian ini dengan panggilan ke backend Anda yang sesungguhnya.
+                // =================================================================
+                const imageUrl = await generateImageMockup(finalPrompt, ratio);
+
+                // Menampilkan hasil
+                resultImage.src = imageUrl;
+                resultContainer.style.display = 'block';
+
+            } catch (error) {
+                console.error('Terjadi kesalahan:', error);
+                alert('Gagal membuat gambar. Silakan cek konsol untuk detailnya.');
+            } finally {
+                // UI state: Selesai
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Buat Gambar';
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        /**
+         * FUNGSI PALSU: Menyimulasikan panggilan API dan mengembalikan gambar placeholder.
+         * Hapus fungsi ini dan ganti dengan fetch() ke backend Anda.
+         */
+        function generateImageMockup(prompt, ratio) {
+            console.log("Menjalankan MOCKUP API call...");
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const [width, height] = ratio === "1:1" ? [512, 512] : ratio === "16:9" ? [1024, 576] : [576, 1024];
+                    // Menggunakan layanan placeholder gambar
+                    const placeholderUrl = `https://picsum.photos/${width}/${height}?random=${Date.now()}`;
+                    console.log("Mockup URL:", placeholderUrl);
+                    resolve(placeholderUrl);
+                }, 2000); // Menyimulasikan jeda jaringan 2 detik
+            });
+        }
+        
+        /**
+         * FUNGSI NYATA (CONTOH): Seperti ini seharusnya panggilan ke backend Anda
+         * async function generateImageReal(prompt, ratio, faceImage) {
+         *     const formData = new FormData();
+         *     formData.append('prompt', prompt);
+         *     formData.append('ratio', ratio);
+         *     if (faceImage) {
+         *         formData.append('faceImage', faceImage);
+         *     }
+         * 
+         *     const response = await fetch('https://url-backend-anda.com/generate-image', {
+         *         method: 'POST',
+         *         body: formData 
+         *         // Di backend, Anda akan menerima data ini, lalu memanggil API Google dengan aman
+         *     });
+         * 
+         *     if (!response.ok) {
+         *         throw new Error('Gagal menghubungi backend');
+         *     }
+         * 
+         *     const data = await response.json();
+         *     return data.imageUrl;
+         * }
+        */
+
+        async function downloadImage() {
+            try {
+                const imageUrl = resultImage.src;
+                // Menggunakan fetch untuk mendapatkan gambar sebagai blob
+                // Perlu proxy jika gambar berasal dari domain lain (seperti picsum.photos)
+                // Untuk hasil dari API Anda sendiri, ini akan bekerja langsung.
+                const response = await fetch(`https://cors-anywhere.herokuapp.com/${imageUrl}`); // Gunakan proxy untuk demo
+                const blob = await response.blob();
+                
+                // Membuat link untuk diunduh
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `generated-${Date.now()}.png`; // Nama file
+                document.body.appendChild(a);
+                a.click();
+                
+                // Membersihkan
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+            } catch (error) {
+                console.error('Gagal mengunduh gambar:', error);
+                alert('Gagal mengunduh gambar. Mungkin karena batasan CORS. Coba klik kanan pada gambar dan "Simpan Gambar Sebagai...".');
+            }
+        }
+    </script>
+
+</body>
+</html>
