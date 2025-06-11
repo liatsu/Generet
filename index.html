@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Generator dari Teks (Gemini API)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>GitHub Image Generator</h1>
+        <p class="subtitle">Ditenagai oleh Google Gemini & HTML Canvas</p>
+
+        <div class="form-group">
+            <label for="apiKey">Gemini API Key Anda</label>
+            <input type="password" id="apiKey" placeholder="Masukkan GEMINI_API_KEY Anda di sini">
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">Prompt (Perintah Teks)</label>
+            <textarea id="prompt" rows="4" placeholder="Contoh: Buatkan kutipan motivasi tentang coding untuk profil GitHub"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="ratio">Rasio Aspek Gambar</label>
+            <select id="ratio">
+                <option value="1:1">Persegi (1:1) - Cocok untuk foto profil</option>
+                <option value="16:9" selected>Lanskap (16:9) - Cocok untuk banner repo</option>
+                <option value="9:16">Potret (9:16) - Cocok untuk story</option>
+            </select>
+        </div>
+
+        <!-- Bagian ControlNet yang dinonaktifkan dengan penjelasan -->
+        <div class="form-group disabled-feature">
+            <label for="controlnet">ControlNet Wajah Asli (Fitur Tidak Tersedia)</label>
+            <input type="file" id="controlnet" disabled>
+            <small>Fitur ini memerlukan model AI gambar (seperti Stable Diffusion), bukan model teks seperti Gemini Flash. API yang digunakan saat ini tidak mendukung input gambar.</small>
+        </div>
+
+        <button id="generateBtn">Buat Gambar</button>
+
+        <div id="loader" class="loader hidden"></div>
+
+        <div class="output-area">
+            <canvas id="resultCanvas"></canvas>
+            <button id="downloadBtn" class="hidden">Unduh Gambar</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
